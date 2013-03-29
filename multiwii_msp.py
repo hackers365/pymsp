@@ -89,10 +89,10 @@ def sendData(data_length, code, data):
         b = ser.write(struct.pack('<3c2B%dhB' % len(data), *total_data))
         ser.flush()
     except Exception, ex:
+        print 'send data is_valid_serial fail'
         multi_info['is_valid_serial'] = False;
+        connect()
     return b
-
-
 
 class index:
     def GET(self, name):
@@ -174,6 +174,7 @@ class receiveData(threading.Thread):
                 ser.flush()
                 data_length = ser.inWaiting()
             except Exception, ex:
+                print 'inWaiting is_valid_serial fail'
                 connect()
 
             if data_length > 0:
@@ -225,11 +226,13 @@ def connect():
         global ser
         while True:
             serial_port = commands.getoutput('ls /dev/ttyUSB*')
+            print serial_port
             if serial_port:
                 ser = serial.Serial(serial_port, band_rate)
-                break
-            else:
-                time.sleep(1)
+                print serial_port
+                if ser:
+                    break
+            time.sleep(1)
     except Exception, ex:
         print 'open serial port fail\n'
         sys.exit()
