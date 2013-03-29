@@ -10,14 +10,9 @@ import commands
 import time
 import threading
 import web
+import types
 
-CODE2TYPE = {
-    100: '',
-    105: '8h',
-    210: '',
-    211: 'B',
-    254: '4h',
-}
+
 
 CMD2CODE = {
     'MSP_IDENT'           :     100,
@@ -56,15 +51,28 @@ CMD2CODE = {
     'MSP_DEBUG'           :     254,
 }
 
-serial_port = commands.getoutput('ls /dev/ttyUSB*')
+
 #serial_port = '/dev/ttyUSB0'
 band_rate = 115200
 ihead_flag = '$M>'
 ser = None
 data_length = 0
 multi_info = {
-'rcdata': [1400, 300, 12998, 2499, 2344,1234,1234,1234],
-'rcdataname': ['roll', 'pitch', 'yaw', 'thr', 'aux1', 'aux2', 'aux3', 'aux4'],
+    'rcdata': [1400, 300, 12998, 2499, 2344,1234,1234,1234],
+    'rcdataname': ['roll', 'pitch', 'yaw', 'thr', 'aux1', 'aux2', 'aux3', 'aux4'],
+    'debug': None,
+    'control_type':None,
+    'is_valid_serial': True,
+}
+
+CODE2INFO = {
+    100: {'type': '', 'data': None},
+    105: {'type': '8h', 'data': multi_info['rcdata']},
+    211: {'type': 'B', 'data': multi_info['control_type']},
+    254: {'type': '4h', 'data': multi_info['debug']},
+
+
+    210: {'type': '', 'data': None},
 }
 
 def sendData(data_length, code, data):
@@ -76,16 +84,15 @@ def sendData(data_length, code, data):
     total_data.append(checksum)
 
     #print ser
-    b = ser.write(struct.pack('<3c2B%dhB' % len(data), *total_data))
-    ser.flush()
+    try:
+        b = None
+        b = ser.write(struct.pack('<3c2B%dhB' % len(data), *total_data))
+        ser.flush()
+    except Exception, ex:
+        multi_info['is_valid_serial'] = False;
     return b
 
-def print_ret(data):
-    code = ord(data[1:2])
-    dl = ord(data[0:1])
 
-    print struct.unpack('<' + CODE2TYPE[code], data[2:2+dl])
-    return
 
 class index:
     def GET(self, name):
@@ -93,16 +100,17 @@ class index:
         if name == 'set':
             global ser
             userdata = web.input(roll=1500,pitch=1500,yaw=1500,thr=1500,aux1=1500,aux2=1500,aux3=1500,aux4=1500)
-            multi_info['rcdata'][0] = True and int(userdata.roll) or 1500
-            multi_info['rcdata'][1] = True and int(userdata.pitch) or 1500
-            multi_info['rcdata'][2] = True and int(userdata.yaw) or 1500
-            multi_info['rcdata'][3] = True and int(userdata.thr) or 1500
-            multi_info['rcdata'][4] = True and int(userdata.aux1) or 1500
-            multi_info['rcdata'][5] = True and int(userdata.aux2) or 1500
-            multi_info['rcdata'][6] = True and int(userdata.aux3) or 1500
-            multi_info['rcdata'][7] = True and int(userdata.aux4) or 1500
+            rcdata = []
+            rcdata.append(True and int(userdata.roll) or 1500)
+            rcdata.append(True and int(userdata.pitch) or 1500)
+            rcdata.append(True and int(userdata.yaw) or 1500)
+            rcdata.append(True and int(userdata.thr) or 1500)
+            rcdata.append(True and int(userdata.aux1) or 1500)
+            rcdata.append(True and int(userdata.aux2) or 1500)
+            rcdata.append(True and int(userdata.aux3) or 1500)
+            rcdata.append(True and int(userdata.aux4) or 1500)
 
-            sendData(16, CMD2CODE['MSP_SET_RAW_RC'], multi_info['rcdata'])
+            sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rcdata)
             sendData(0, CMD2CODE['MSP_RC'], [])
             return 'set ok'
         elif name == 'switch':
@@ -135,11 +143,23 @@ class WebApp(threading.Thread):
 
         app = web.application(urls, globals())
         app.run()
+
 class receiveData(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
+
     def run(self):
         self.receive_proc()
+
+    def unpack_data(self, data):
+        code = ord(data[1:2])
+        dl = ord(data[0:1])
+
+        if CODE2INFO[code]['data'] != None:
+            if type(CODE2INFO[code]['data']) == types.ListType:
+                del CODE2INFO[code]['data'][:]
+                CODE2INFO[code]['data'].extend(struct.unpack('<' + CODE2INFO[code]['type'], data[2:2+dl]))
+        return
 
     def receive_proc(self):
         global ser
@@ -149,8 +169,13 @@ class receiveData(threading.Thread):
         pos = 0
         i = 0
         while 1:
-            ser.flush()
-            data_length = ser.inWaiting()
+            data_length = 0
+            try:
+                ser.flush()
+                data_length = ser.inWaiting()
+            except Exception, ex:
+                connect()
+
             if data_length > 0:
                 rbuffer += ser.read(data_length)
                 need_read = 0
@@ -184,7 +209,7 @@ class receiveData(threading.Thread):
                         ##print "checksum:" + str(checksum)
                         ##print "orig_checksum:" + str(ord(orig_checksum))
                         if ord(orig_checksum) == checksum:
-                            print_ret(data)
+                            self.unpack_data(data)
                     #not complete data
                     elif (dl + 3) > len(data):
                         need_read = True
@@ -195,26 +220,36 @@ class receiveData(threading.Thread):
                     need_read = True
                     break
 
-if __name__ == "__main__":
+def connect():
     try:
-        ser = serial.Serial(serial_port, band_rate)
+        global ser
+        while True:
+            serial_port = commands.getoutput('ls /dev/ttyUSB*')
+            if serial_port:
+                ser = serial.Serial(serial_port, band_rate)
+                break
+            else:
+                time.sleep(1)
     except Exception, ex:
         print 'open serial port fail\n'
         sys.exit()
+    multi_info['is_valid_serial'] = True;
+if __name__ == "__main__":
+    connect()
     #start read thread
     rd = receiveData()
     rd.start()
     wa = WebApp()
     wa.start()
-    #~ while 1:
+    while 1:
         #~ rc_data = [1401, 1300, 1598, 1389, 1289, 1487, 1278, 1698]  #roll,pitch,yaw,thr,aux1,aux2,aux3,aux4
         #~ i = 7
         #~ while i >= 0:
             #~ rc_data[i] = random.randint(1100, 1900)
             #~ i = i -1
         #~ sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
-        #~ sendData(0, CMD2CODE['MSP_RC'], [])
-        #~ time.sleep(0.02)
+        sendData(0, CMD2CODE['MSP_RC'], [])
+        time.sleep(0.1)
 
 
     #print sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
