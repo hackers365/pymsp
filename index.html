@@ -1,0 +1,144 @@
+<html>
+    <head>
+        <style type="text/css">
+            div.right_outer
+            {
+                width:300px;
+                height:300px;
+                right:100px;
+                bottom:100px;
+                border-color:black;
+                position:fixed;
+                border-style:solid;
+            }
+
+            div.right_inner
+            {
+                width: 50px;
+                height: 50px;
+                right:225px;
+                bottom:225px;
+                border-color:red;
+                color: red;
+                position: fixed;
+                border-style:solid;
+                border-radius: 50% 50% 50% 50%;
+            }
+
+            div.left_outer
+            {
+                width:300px;
+                height:300px;
+                left:100px;
+                bottom:100px;
+                border-color:black;
+                position:fixed;
+                border-style:solid;
+            }
+
+            div.left_inner
+            {
+                width: 50px;
+                height: 50px;
+                left:225px;
+                bottom:225px;
+                border-color:red;
+                color: red;
+                position: fixed;
+                border-style:solid;
+                border-radius: 50% 50% 50% 50%;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="info">
+            roll:<span class="roll">0 </span>
+            pitch:<span class="pitch">0 </span>
+            yaw:<span class="yaw">0 </span>
+            thr:<span class="thr">0 </span>
+        </div>
+        <div class="right_outer">
+        </div>
+         <div class="right_inner">
+        </div>
+
+        <div class="left_outer">
+        </div>
+         <div class="left_inner">
+        </div>
+
+
+    <script src="/static/jquery.min.js"></script>
+    <script src="/static/jquery.event.drag.js"></script>
+
+    <script type="text/javascript">
+        var $right_div = $('div.right_outer'),
+            $right_inner = $('div.right_inner'),
+            $left_div = $('div.left_outer'),
+            $left_inner = $('div.left_inner'),
+            $info_roll = $('span.roll'),
+            $info_pitch = $('span.pitch'),
+            $info_yaw = $('span.yaw'),
+            $info_thr = $('span.thr'),
+            right_height = $right_div.outerHeight(),
+            right_width = $right_div.outerWidth(),
+            left_height = $left_div.outerHeight(),
+            left_width = $left_div.outerWidth(),
+            right_inner_height = $right_inner.outerHeight(),
+            right_inner_width = $right_inner.outerWidth(),
+            left_inner_height = $left_inner.outerHeight(),
+            left_inner_width = $left_inner.outerWidth();
+
+        var ar = {max: 1900, min: 1200},
+                h_average = (ar.max - ar.min) / (right_height - right_inner_height),
+                w_average = (ar.max - ar.min) / (right_width - right_inner_width);
+
+        $('div.right_inner').drag("start",function( ev, dd ){
+             dd.limit = $right_div.offset();
+             dd.limit.bottom = dd.limit.top + $right_div.outerHeight() - $( this ).outerHeight();
+             dd.limit.right = dd.limit.left + $right_div.outerWidth() - $( this ).outerWidth();
+        })
+        .drag(function( ev, dd ){
+             var t = Math.min(dd.limit.bottom, Math.max(dd.limit.top, dd.offsetY)),
+                 l = Math.min(dd.limit.right, Math.max(dd.limit.left, dd.offsetX));
+             $info_thr.text(parseInt((dd.limit.bottom - t) * h_average + ar.min));
+             $info_roll.text(parseInt((l - dd.limit.left) * w_average + ar.min));
+
+             $( this ).css({
+                top: t ,
+                left: l
+             });
+      })
+      .drag("end", function(ev, dd) {
+             var l = right_width / 2 - right_inner_width / 2 + dd.limit.left;
+             $info_roll.text(parseInt((ar.max - ar.min) / 2 + ar.min));
+             $(this).css({left: l});
+          });
+
+      $('div.left_inner').drag("start",function( ev, dd ){
+             dd.limit = $left_div.offset();
+             dd.limit.bottom = dd.limit.top + $left_div.outerHeight() - $( this ).outerHeight();
+             dd.limit.right = dd.limit.left + $left_div.outerWidth() - $( this ).outerWidth();
+        })
+        .drag(function( ev, dd ){
+             var t = Math.min(dd.limit.bottom, Math.max(dd.limit.top, dd.offsetY)),
+                 l = Math.min(dd.limit.right, Math.max(dd.limit.left, dd.offsetX));
+             $info_pitch.text(parseInt((dd.limit.bottom - t) * h_average + ar.min));
+             $info_yaw.text(parseInt((l - dd.limit.left) * w_average + ar.min));
+
+             $( this ).css({
+                top: t ,
+                left: l
+             });
+      })
+      .drag("end", function(ev, dd) {
+            var l = left_width / 2 - left_inner_width / 2 + dd.limit.left,
+                t = left_height / 2 - left_inner_height / 2 + dd.limit.top;
+            $info_pitch.text(parseInt((ar.max - ar.min) / 2 + ar.min));
+            $info_yaw.text(parseInt((ar.max - ar.min) / 2 + ar.min));
+            $(this).css({top:t, left: l});
+          });
+    </script>
+    </body>
+
+</html>
