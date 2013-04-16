@@ -60,6 +60,7 @@ data_length = 0
 multi_info = {
     'rcdata': [1400, 300, 12998, 2499, 2344,1234,1234,1234],
     'rcdataname': ['roll', 'pitch', 'yaw', 'thr', 'aux1', 'aux2', 'aux3', 'aux4'],
+    'imu': [],
     'debug': None,
     'control_type':None,
     'is_valid_serial': True,
@@ -67,6 +68,7 @@ multi_info = {
 
 CODE2INFO = {
     100: {'type': '', 'data': None},
+    102: {'type': '9h', 'data': multi_info['imu']},
     105: {'type': '8h', 'data': multi_info['rcdata']},
     211: {'type': 'B', 'data': multi_info['control_type']},
     254: {'type': '4h', 'data': multi_info['debug']},
@@ -124,8 +126,9 @@ class index:
         elif name == 'debug':
             sendData(0, CMD2CODE['MSP_DEBUG'], [])
         elif name == 'info':
-            render = web.template.render('')
-            return render.multi_info(multi_info)
+            #render = web.template.render('')
+            #return render.multi_info(multi_info)
+            return multi_info['imu']
         else:
             render = web.template.render('')
             return render.hello()
@@ -251,7 +254,7 @@ if __name__ == "__main__":
             #~ rc_data[i] = random.randint(1100, 1900)
             #~ i = i -1
         #~ sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
-        sendData(0, CMD2CODE['MSP_RC'], [])
+        sendData(0, CMD2CODE['MSP_RAW_IMU'], [])
         time.sleep(0.1)
 
 

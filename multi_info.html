@@ -5,7 +5,5 @@ $for i in range(0, 7):
     $info['rcdataname'][i]:
     $info['rcdata'][i]
 
-
-<br>
-$if not info['is_valid_serial']:
-    serial port closed
+$for i in range(0,8):
+    $info['imu'][i]
